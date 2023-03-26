@@ -1,1 +1,0 @@
-# Generative-AI-Meeting-Intelligence-Application
