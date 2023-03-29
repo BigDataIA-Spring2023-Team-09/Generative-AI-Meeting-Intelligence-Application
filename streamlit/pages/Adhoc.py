@@ -19,6 +19,22 @@ s3client = boto3.client('s3',
 # Accessing openai API through API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+def chatgpt_api_call(my_transcript, ques_list, ans_list, count):
+
+    my_dict={
+        "questions":ques_list,
+        "answers":ans_list
+    }
+
+    custom_response = openai.Completion.create(
+        model="text-davinci-003",
+        prompt=str(my_transcript) + '\n' + str(my_dict) + '\n' + "Given this meeting transcript, and question/answers, answer the last question. Don't return the question again.",
+        max_tokens=1000,
+        temperature=0
+    )
+    
+    return custom_response["choices"][0]["text"]
+
 def chatgpt_default_ques(transcript_file):
 
     trans_response = s3client.get_object(Bucket=user_bucket, Key=transcript_file)
@@ -34,107 +50,123 @@ def chatgpt_default_ans(transcript_file):
     return answers
 
 def chatgpt_transcript(transcript_file):
-
+    updated_transcript = []
     trans_response = s3client.get_object(Bucket=user_bucket, Key=transcript_file)
-    json_content = trans_response['Body'].read().decode('utf-8')
-    transcript = json_content.split('\"')[3]
-    return transcript
+    transcript = trans_response['Body'].read().decode('utf-8')
+    transcript=transcript.replace('[','').replace(']','').replace('", ','').replace('"','').replace('\'','').replace('\\n, ','\\n')
+    updated_transcript = transcript.split('\\n')
+    del updated_transcript[-1]
+    
+    return updated_transcript
 
 # Set page title
 st.markdown("<h1 style='text-align: center;'>Transcribe audio file</h1>", unsafe_allow_html=True)
 st.header("")
 
 # Call the list_objects_v2 method to list all the objects in the folder
-response = s3client.list_objects_v2(Bucket=user_bucket, Prefix='current/')
+response = s3client.list_objects_v2(Bucket=user_bucket, Prefix='processed/')
 file_list = []
+
+transcript=[]
+
+if 'new_query' not in st.session_state:
+    st.session_state.new_query='not new'
+    st.session_state.user_ques=[]
+    st.session_state.user_ans=[]
 
 # Print the object keys returned by the response
 for obj in response.get('Contents', []):
-    file_name = obj['Key']
-    file_list.append(str(file_name).split('/')[-1])
-
+    if (".wav" in obj['Key']):
+        file_name = obj['Key']
+        file_list.append(str(file_name).split('/')[-1])
 
 audio_file = st.selectbox(
     'Select the Audio file :',
     (file_list))
 st.write('You selected :', audio_file)
 
-transcript_file = f'processed/{audio_file}'
+if ((audio_file!="") and (audio_file!="No options to select.")):
+    transcript_file = f'processed/{audio_file.split(".")[0]}'+'.txt'
 
 st.header("")
 
 # Create a button to upload a file
-if st.button('Transcribe'):
-    if audio_file is None:
-        st.write("Please upload a file")
-        
-    # else:
+if st.button('View transcription'):
+    if (transcript_file=='processed/'):
+        st.write("Please select a file")
+    else:
 
-        # # # Set up the S3 and Transcribe clients
-        # # transcribe = boto3.client('transcribe', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key, region_name='us-west-2')
+        st.subheader("Meeting transcript")
 
-        # file_key = f'current/{audio_file}'
+        transcript = chatgpt_transcript(transcript_file)
+        for i in range(len(transcript)):
+            st.text(transcript[i])
 
-        # # # Download the audio file from S3 to a temporary file
-        # # with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp_audio_file:
-        # #     with open('FILE_NAME', 'wb') as f:
-        # #         s3client.download_fileobj(user_bucket, file_key, f)
+        answers = chatgpt_default_ans(f'processed/{audio_file.split(".")[0]}'+'.txt'+'_default_ques')
 
-        # #     # Transcribe the audio file using the Whisper API
-        # #     transcript = openai.Audio.transcribe("whisper-1", tmp_audio_file.read())
+        st.subheader("")
 
-        # # Download the audio file to a temporary file
-        # with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp_audio_file:
-        #     tmp_audio_file.write(f.read())
-        #     s3client.download_file(user_bucket, file_key, tmp_audio_file.name)
-        #     tmp_audio_file.seek(0)
-        #     audio_data = tmp_audio_file.read()
+        st.subheader('Meeting details')
 
-        # # Transcribing the audio file to get the transcript
-        # with io.BytesIO(audio_data) as audio_file:
-        #     audio_file.name = "audio.mp3"  # Set the file name manually
-        #     transcript = openai.Audio.transcribe("whisper-1", audio_file)
+        # Display some example questions
+        default_ques = ["1. What is this meeting about?", "2. How many speakers are there in the conversation?", "3. What are the minutes of this meeting?"]
+        default_ans=[]
 
-        # st.write(transcript)
+        default_ans.append(answers.split('\\nA2:')[0].replace("\\nA1:","").replace("\\n",""))
+        answers=answers.split('\\nA2:')[1]
+        default_ans.append(answers.split('\\nA3:')[0].replace("\\nA2:",""))
+        default_ans.append(answers.split('\\nA3:')[1].replace("\\nA3:","").replace("\\n",'\n'))
 
+        for i in range(0,3):
+            st.write(default_ques[i])
+            st.write(default_ans[i])
 
-# Create a section for asking generic questions
-st.header("Generic Questions")
-
-# Display some example questions
-st.write("1. Give me the summary.")
-st.write("2. How many speakers are there in the conversation?")
-st.write("3. What is the tone of the conversation?")
+        st.session_state.new_query=''
+        st.session_state.user_ques=[]
+        st.session_state.user_ans=[]
 
 # Create a text box for manually entering a question
 user_input = st.text_input("Enter a question manually")
 
-# Create a button to submit the question
-ask_button = st.button("Ask Question")
+if st.button('Ask a question'):
+    if (transcript_file=='processed/'):
+        st.write("Please select a file")
+    if (user_input==""):
+        st.write("Please type-in a question")
+    else:
 
-# List all objects in the bucket
-response = s3client.list_objects_v2(Bucket=user_bucket)
+        if st.session_state.user_ques==[]:
+            st.session_state.user_ques.append(chatgpt_default_ques(f'processed/{audio_file.split(".")[0]}'+'.txt'+'_default_ques'))
+            st.session_state.user_ans.append(chatgpt_default_ans(f'processed/{audio_file.split(".")[0]}'+'.txt'+'_default_ques'))
 
-# Print the name of each object
-for obj in response['Contents']:
-    st.write(obj['Key'])
+        count=len(st.session_state.user_ques)
+        st.session_state.user_ques.append(f'\nQ{count+3}:'+user_input)
 
-st.header("")
+        st.write(chatgpt_api_call(transcript, st.session_state.user_ques, st.session_state.user_ans, count))
 
-st.write('transcript')
+        st.session_state.user_ans.append(chatgpt_api_call(transcript, st.session_state.user_ques, st.session_state.user_ans, count))
 
-transcript = chatgpt_transcript('processed/plans')
-st.write(transcript)
+        st.subheader("Meeting transcript")
 
-st.header("")
+        transcript = chatgpt_transcript(transcript_file)
+        for i in range(len(transcript)):
+            st.text(transcript[i])
 
-st.write('default ques')
+        answers = chatgpt_default_ans(f'processed/{audio_file.split(".")[0]}'+'.txt'+'_default_ques')
 
-questions = chatgpt_default_ques('processed/test_audio_deafult_ques')
-st.write(questions)
-for i in questions.split('\\n'):
-    st.write(i)
+        st.subheader("")
 
-answers = chatgpt_default_ans('processed/test_audio_deafult_ques')
-for i in answers.split('\\n'):
-    st.write(i)
+        st.subheader('Meeting details')
+
+        # Display some example questions
+        default_ques = ["1. What is this meeting about?", "2. How many speakers are there in the conversation?", "3. What are the minutes of this meeting?"]
+        default_ans=[]
+
+        default_ans.append(answers.split('\\nA2:')[0].replace("\\nA1:","").replace("\\n",""))
+        answers=answers.split('\\nA2:')[1]
+        default_ans.append(answers.split('\\nA3:')[0].replace("\\nA2:",""))
+        default_ans.append(answers.split('\\nA3:')[1].replace("\\nA3:","").replace("\\n",'\n'))
+
+        for i in range(0,3):
+            st.write(default_ques[i])
+            st.write(default_ans[i])
