@@ -132,3 +132,4 @@ dmypy.json
 *.wav
 Pipfile
 *.mp3
+batch.py
