@@ -55,7 +55,7 @@ def chatgpt_transcript(transcript_file):
     transcript = trans_response['Body'].read().decode('utf-8')
     transcript=transcript.replace('[','').replace(']','').replace('", ','').replace('"','').replace('\'','').replace('\\n, ','\\n')
     updated_transcript = transcript.split('\\n')
-    del updated_transcript[-1]
+    # del updated_transcript[-1]
     
     return updated_transcript
 
