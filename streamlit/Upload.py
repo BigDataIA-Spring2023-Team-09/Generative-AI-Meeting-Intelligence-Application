@@ -1,23 +1,15 @@
-from io import BytesIO
 import streamlit as st
 import os
 import boto3
 from dotenv import load_dotenv
-from pydub import AudioSegment
 # Note: you need to be using OpenAI Python v0.27.0 for the code below to work
-import openai
-import botocore
-import io
-import json
-from pydub import AudioSegment
-from pyannote.audio import Pipeline
-import re
-import smart_open
-from urllib.request import urlopen
-from pyannote.audio import Audio
 import Diarization
+import requests
+import requests
 
 load_dotenv()
+
+
 
 s3client = boto3.client('s3', 
                         region_name='us-east-1',
@@ -108,6 +100,23 @@ if (st.button("Upload with DAG")):
                 s3client.upload_fileobj(f, str(user_bucket), f'current/{str(audio_file.name)}')
             
             #Trigger DAG with file and language as parameters
+            airflow_url = "http://34.74.233.133:8080/home/api/v1/dags/read_audio_file_from_s3/dagRuns"
+            headers = {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+                "Authorization": "Basic YWlyZmxvdzQ6YWlyZmxvdzQ="
+            }
+            json_data = {"conf" : {"file_name": audio_file.name, "language": language}}
+            response = requests.post(airflow_url, headers=headers, json=json_data)
+            if response.status_code == 200 or response.status_code == 201:
+                response_json = response.json()
+                st.write(
+                    "DAG triggered successfully",
+                    response_json["execution_date"],
+                    response_json["dag_run_id"],
+                )
+            else:
+                st.write(f"Error triggering DAG: {response.text}", None, None)
 
             # Remove the selected file
             audio_file = None
