@@ -39,12 +39,11 @@ def chatgpt_default_ques(transcript_file):
     trans_response = s3client.get_object(Bucket=os.environ.get('USER_BUCKET_NAME'), Key=transcript_file)
     data = trans_response['Body'].read().decode('utf-8')
 
-    response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=str(data) + '\n' + "Given this meeting transcript, i have 3 questions. Answer them in a Question/Answer format." + '\n' + "Q1: What is this meeting about?" + '\n' + "Q2: How many speakers are present?" + '\n' + "Q3: Give the minutes of meeting in 3 short points.",
-        max_tokens=1000,
-        temperature=0
-    )
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+        {"role": "user", "content": str(data) + '\n' + "Given this meeting transcript, i have 3 questions. Answer them in a Question/Answer format." + '\n' + "Q1: What is this meeting about?" + '\n' + "Q2: How many speakers are present?" + '\n' + "Q3: Give the minutes of meeting in 3 short points."}
+    ])
     
     ques_file=transcript_file.split('/')[1] + "_default_ques"
 
@@ -52,7 +51,7 @@ def chatgpt_default_ques(transcript_file):
 
     ques_data={
         'questions': my_ques,
-        'answers': response["choices"][0]["text"]
+        'answers': response.choices[0].message["content"]
     }
     json_data = json.dumps(ques_data)
     s3client.put_object(Bucket=os.environ.get('USER_BUCKET_NAME'), Key='processed/' + ques_file, Body=json_data)

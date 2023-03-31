@@ -132,5 +132,6 @@ dmypy.json
 *.wav
 Pipfile
 *.mp3
-deployment_architecture_diagram.png
 architecture.py
+*.png
+batch.py
