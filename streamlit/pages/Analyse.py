@@ -100,7 +100,8 @@ if st.button('View transcription'):
 
         transcript = chatgpt_transcript(transcript_file)
         for i in range(len(transcript)):
-            st.text(transcript[i])
+            # st.text(transcript[i])
+            st.text_area("transcript", value=transcript[i], label_visibility="hidden")
 
         answers = chatgpt_default_ans(f'processed/{audio_file.split(".")[0]}'+'.txt'+'_default_ques')
 
@@ -150,7 +151,8 @@ if st.button('Ask a question'):
 
         transcript = chatgpt_transcript(transcript_file)
         for i in range(len(transcript)):
-            st.text(transcript[i])
+            # st.text(transcript[i])
+            st.text_area("transcript", value=transcript[i], label_visibility="hidden")
 
         answers = chatgpt_default_ans(f'processed/{audio_file.split(".")[0]}'+'.txt'+'_default_ques')
 
