@@ -78,8 +78,8 @@ def audio_to_whisper_api():
         filename=obj['Key']
         file=filename.replace('.mp3','').replace('.wav','')
     
-        response = s3client.get_object(Bucket=os.environ.get('USER_BUCKET_NAME'), Key='batch/'+filename)
-        audio_file = io.BytesIO(response['Body'].read())
+        response_file = s3client.get_object(Bucket=os.environ.get('USER_BUCKET_NAME'), Key='batch/'+filename)
+        audio_file = io.BytesIO(response_file['Body'].read())
         audio_file.name = file
         transcript_list=[]
 

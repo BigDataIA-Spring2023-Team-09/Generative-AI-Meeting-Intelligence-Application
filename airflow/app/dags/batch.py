@@ -17,6 +17,7 @@ AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_KEY')
 USER_BUCKET_NAME = Variable.get('USER_BUCKET_NAME')
 
+openai.api_key = Variable.get("OPENAI_API_KEY")
 
 s3client = boto3.client(
     's3',

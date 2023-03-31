@@ -100,11 +100,11 @@ if (st.button("Upload with DAG")):
                 s3client.upload_fileobj(f, str(user_bucket), f'current/{str(audio_file.name)}')
             
             #Trigger DAG with file and language as parameters
-            airflow_url = "http://34.74.233.133:8080/home/api/v1/dags/read_audio_file_from_s3/dagRuns"
+            airflow_url = "http://34.74.233.133:8080/api/v1/dags/adhoc/dagRuns"
             headers = {
                 "Content-Type": "application/json",
                 "Cache-Control": "no-cache",
-                "Authorization": "Basic YWlyZmxvdzQ6YWlyZmxvdzQ="
+                "Authorization": "Basic YWlyZmxvdzQ6YWlyZmxvdzQ=",
             }
             json_data = {"conf" : {"file_name": audio_file.name, "language": language}}
             response = requests.post(airflow_url, headers=headers, json=json_data)
