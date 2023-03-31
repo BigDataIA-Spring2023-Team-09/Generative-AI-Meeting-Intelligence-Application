@@ -99,7 +99,7 @@ if (st.button("Upload with DAG")):
                     break
         else:
             # Upload the file to the unprocessed folder in S3 bucket
-            with open(audio_file.name, "rb") as f:
+            with open(audio_file, "rb") as f:
                 s3client.upload_fileobj(f, str(user_bucket), f'current/{str(audio_file.name)}')
             
             #Trigger DAG with file and language as parameters
